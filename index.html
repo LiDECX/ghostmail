@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GhostMail</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+  <title>GhostMail · случайная почта</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -309,7 +309,6 @@
       </div>
       <div>
         <h1 class="text-white font-bold text-xl tracking-tight leading-none">GhostMail</h1>
-        <p class="text-gray-600 text-xs mt-0.5">Временная почта</p>
       </div>
     </div>
     <div id="statusDot" class="flex items-center gap-2">
@@ -445,27 +444,26 @@ let pollTimer = null;
 let countdownTimer = null;
 let isRefreshing = false;
 
-const ADJECTIVES = ['dark','void','lost','cold','pale','grey','mist','dust','ash','echo',
-  'faint','grim','haze','iron','jade','keen','late','moon','numb','odd',
-  'pure','rare','soft','thin','wild','zero','blur','calm','dusk','ebon'];
-const NOUNS = ['wolf','rook','moth','crow','pike','sage','lark','mole','deer','fern',
-  'gale','hawk','iris','jade','kite','lynx','mare','newt','orca','puma',
-  'reed','ruse','seal','teal','ursa','vole','wren','yak','zeal','dune'];
+function randomString(length = 10) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
 
 function randomName() {
-  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  const num = Math.floor(Math.random() * 900) + 100;
-  return `${adj}${noun}${num}`;
+  return randomString(12);
 }
 
 function saveState() {
-  localStorage.setItem('ghostmail_state', JSON.stringify(state));
+  localStorage.setItem('ghostmail_random_state', JSON.stringify(state));
 }
 
 function loadState() {
   try {
-    const raw = localStorage.getItem('ghostmail_state');
+    const raw = localStorage.getItem('ghostmail_random_state');
     if (raw) {
       const s = JSON.parse(raw);
       if (s.email && s.password && s.createdAt) {
@@ -479,7 +477,7 @@ function loadState() {
 
 function genPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
-  return Array.from({length: 20}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return Array.from({length: 24}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
 function showToast(msg = 'Скопировано!') {
@@ -693,7 +691,7 @@ async function createNewEmail(silent = false) {
   await refreshMessages();
   startPolling();
 
-  if (!silent) showToast('Новый ящик создан!');
+  if (!silent) showToast('Новый случайный ящик!');
 }
 
 function setEmailLoading(loading) {
