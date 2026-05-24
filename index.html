@@ -319,15 +319,6 @@
 
   <div class="email-card p-5 mb-4 glow-pulse" id="emailCard">
     <div class="mb-4">
-      <p class="text-gray-600 text-xs mb-2 uppercase tracking-widest">mail.tm</p>
-      <div id="domainList" class="flex flex-wrap gap-2">
-        <div class="shimmer h-7 w-24 rounded-lg"></div>
-        <div class="shimmer h-7 w-28 rounded-lg"></div>
-        <div class="shimmer h-7 w-20 rounded-lg"></div>
-      </div>
-    </div>
-    <hr class="divider mb-4">
-    <div class="mb-4">
       <p class="text-gray-600 text-xs mb-2 uppercase tracking-widest">Ваш адрес</p>
       <div class="flex items-center gap-3">
         <div id="emailDisplay" class="mono text-white text-base font-medium flex-1 truncate">
@@ -573,28 +564,13 @@ async function fetchDomains() {
   const res = await apiFetch('GET', '/domains');
   if (res.ok && res.data && res.data['hydra:member']) {
     domains = res.data['hydra:member'].map(d => d.domain);
-    renderDomains();
     return true;
   }
   return false;
 }
 
-function renderDomains() {
-  const list = document.getElementById('domainList');
-  list.innerHTML = '';
-  domains.forEach(d => {
-    const chip = document.createElement('button');
-    chip.className = `domain-chip px-3 py-1.5 text-xs mono ${d === selectedDomain ? 'active text-white' : 'text-gray-500'}`;
-    chip.textContent = d;
-    chip.dataset.domain = d;
-    chip.onclick = () => selectDomain(d);
-    list.appendChild(chip);
-  });
-}
-
 function selectDomain(d) {
   selectedDomain = d;
-  renderDomains();
 }
 
 async function createEmail(domain, name) {
@@ -644,7 +620,6 @@ async function initEmail() {
   }
 
   selectedDomain = domains[0];
-  renderDomains();
 
   await createNewEmail(true);
 }
@@ -711,11 +686,6 @@ function renderEmailUI() {
   const [localPart, domainPart] = state.email.split('@');
   display.innerHTML = `<span class="text-gray-400">${localPart}</span><span class="text-gray-700">@</span><span class="text-white">${domainPart}</span>`;
   copyBtn.disabled = false;
-
-  if (state.domain) {
-    selectedDomain = state.domain;
-    renderDomains();
-  }
 }
 
 function copyEmail() {
@@ -917,14 +887,6 @@ function confirmNew() {
 function closeConfirmModal(event) {
   if (event && event.target !== document.getElementById('confirmModal')) return;
   document.getElementById('confirmModal').style.display = 'none';
-}
-
-function selectDomain(d) {
-  selectedDomain = d;
-  renderDomains();
-  if (state.email && state.domain && d !== state.domain) {
-    showToast('Нажмите «Новый» чтобы сменить сервер');
-  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
