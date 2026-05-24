@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GhostMail</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #080808;
+      color: #e8e8e8;
+      min-height: 100vh;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    @keyframes floatGhost {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .ghost-float { animation: floatGhost 3s ease-in-out infinite; }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.0); }
+      50% { box-shadow: 0 0 20px 2px rgba(255,255,255,0.07); }
+    }
+    .glow-pulse { animation: glow 4s ease-in-out infinite; }
+
+    .timer-ring { transition: stroke-dashoffset 1s linear; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .shimmer {
+      background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    .email-card {
+      border: 1px solid #222;
+      border-radius: 12px;
+      background: #0f0f0f;
+      transition: border-color 0.2s;
+    }
+    .email-card:hover { border-color: #333; }
+
+    .domain-chip {
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      background: #111;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .domain-chip:hover { border-color: #555; background: #1a1a1a; }
+    .domain-chip.active { border-color: #fff; background: #1a1a1a; }
+
+    .copy-btn {
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      background: #111;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+    .copy-btn:hover { border-color: #555; background: #1c1c1c; }
+    .copy-btn:active { background: #222; }
+
+    .new-btn {
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      background: transparent;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+    .new-btn:hover { border-color: #444; background: #111; }
+
+    .action-btn {
+      background: #fff;
+      color: #000;
+      border-radius: 8px;
+      transition: all 0.15s;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .action-btn:hover { background: #e8e8e8; }
+    .action-btn:active { background: #d0d0d0; }
+
+    .msg-item {
+      border: 1px solid #1e1e1e;
+      border-radius: 10px;
+      background: #0c0c0c;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .msg-item:hover { border-color: #333; background: #111; }
+    .msg-item.unread { border-left: 3px solid #fff; }
+
+    .badge {
+      background: #fff;
+      color: #000;
+      border-radius: 50px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+    }
+
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-box {
+      background: #0f0f0f;
+      border: 1px solid #222;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 640px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .divider { border-color: #1e1e1e; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+    .blink { animation: blink 2s ease-in-out infinite; }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .spinning { animation: spin 0.6s linear; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #fff;
+      color: #000;
+      padding: 8px 20px;
+      border-radius: 50px;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 999;
+      transition: transform 0.25s ease;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    @keyframes eyeBlink {
+      0%, 90%, 100% { transform: scaleY(1); }
+      95% { transform: scaleY(0.1); }
+    }
+    .ghost-eye { animation: eyeBlink 4s ease-in-out infinite; transform-origin: center; }
+
+    .ring-track { fill: none; stroke: #1e1e1e; stroke-width: 2.5; }
+    .ring-progress { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; }
+
+    .empty-ghost { opacity: 0.12; }
+
+    input[type="text"] { outline: none; }
+    input[type="text"]:focus { outline: none; }
+
+    .timer-circle {
+      width: 48px;
+      height: 48px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .timer-circle svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .timer-circle span {
+      position: relative;
+      z-index: 1;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .modal-sender-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 600;
+      color: #888;
+      flex-shrink: 0;
+    }
+    .modal-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      color: #999;
+      font-size: 13px;
+    }
+    .modal-meta-label {
+      color: #666;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-width: 50px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="toast" class="toast">Скопировано!</div>
+
+<div id="msgModal" class="modal-overlay" style="display:none;" onclick="closeMsgModal(event)">
+  <div class="modal-box p-6 fade-in">
+    <div class="modal-header">
+      <div class="modal-sender-info">
+        <div class="modal-avatar" id="modalAvatar">?</div>
+        <div class="flex-1 min-w-0">
+          <p id="modalFromName" class="text-white font-semibold text-base truncate"></p>
+          <p id="modalFromAddr" class="text-gray-500 text-xs mono truncate"></p>
+        </div>
+      </div>
+      <button onclick="closeMsgModal()" class="text-gray-600 hover:text-gray-300 transition-colors flex-shrink-0 ml-3">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="mb-5 p-4 rounded-xl" style="background:#0a0a0a; border:1px solid #1a1a1a;">
+      <p id="modalSubject" class="text-white font-semibold text-base leading-snug mb-3"></p>
+      <div class="space-y-2">
+        <div class="modal-meta-item">
+          <span class="modal-meta-label">От</span>
+          <span id="modalFromFull" class="text-gray-300 text-xs"></span>
+        </div>
+        <div class="modal-meta-item">
+          <span class="modal-meta-label">Кому</span>
+          <span id="modalTo" class="text-gray-300 text-xs mono"></span>
+        </div>
+        <div class="modal-meta-item">
+          <span class="modal-meta-label">Дата</span>
+          <span id="modalDate" class="text-gray-300 text-xs"></span>
+        </div>
+      </div>
+    </div>
+    <div id="modalBody" class="text-gray-300 text-sm leading-relaxed px-1"></div>
+  </div>
+</div>
+
+<div class="min-h-screen flex flex-col max-w-2xl mx-auto px-4 py-8">
+
+  <div class="flex items-center justify-between mb-10">
+    <div class="flex items-center gap-3">
+      <div class="ghost-float">
+        <svg width="32" height="32" viewBox="0 0 40 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 2C10.059 2 2 10.059 2 20V42L8 36L14 42L20 36L26 42L32 36L38 42V20C38 10.059 29.941 2 20 2Z" fill="#fff"/>
+          <g class="ghost-eye">
+            <circle cx="14" cy="19" r="3" fill="#000"/>
+            <circle cx="26" cy="19" r="3" fill="#000"/>
+          </g>
+          <circle cx="14" cy="19" r="1.2" fill="#fff"/>
+          <circle cx="26" cy="19" r="1.2" fill="#fff"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-white font-bold text-xl tracking-tight leading-none">GhostMail</h1>
+        <p class="text-gray-600 text-xs mt-0.5">Временная почта</p>
+      </div>
+    </div>
+    <div id="statusDot" class="flex items-center gap-2">
+      <span class="blink w-2 h-2 rounded-full bg-gray-600 block"></span>
+      <span class="text-gray-600 text-xs" id="statusText">Инициализация...</span>
+    </div>
+  </div>
+
+  <div class="email-card p-5 mb-4 glow-pulse" id="emailCard">
+    <div class="mb-4">
+      <p class="text-gray-600 text-xs mb-2 uppercase tracking-widest">mail.tm</p>
+      <div id="domainList" class="flex flex-wrap gap-2">
+        <div class="shimmer h-7 w-24 rounded-lg"></div>
+        <div class="shimmer h-7 w-28 rounded-lg"></div>
+        <div class="shimmer h-7 w-20 rounded-lg"></div>
+      </div>
+    </div>
+    <hr class="divider mb-4">
+    <div class="mb-4">
+      <p class="text-gray-600 text-xs mb-2 uppercase tracking-widest">Ваш адрес</p>
+      <div class="flex items-center gap-3">
+        <div id="emailDisplay" class="mono text-white text-base font-medium flex-1 truncate">
+          <span class="shimmer h-5 w-48 block rounded"></span>
+        </div>
+        <button class="copy-btn px-3 py-1.5 text-gray-300 text-xs flex items-center gap-1.5" onclick="copyEmail()" id="copyBtn" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          Копировать
+        </button>
+      </div>
+    </div>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="timer-circle">
+          <svg viewBox="0 0 48 48">
+            <circle class="ring-track" cx="24" cy="24" r="20"/>
+            <circle id="ringProgress" class="ring-progress" cx="24" cy="24" r="20"
+              stroke-dasharray="125.66"
+              stroke-dashoffset="0"
+              transform="rotate(-90 24 24)"/>
+          </svg>
+          <span id="timerLabel">15:00</span>
+        </div>
+        <div>
+          <p class="text-white text-xs font-medium">Автосброс</p>
+          <p class="text-gray-600 text-xs">через <span id="timerText">15:00</span></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="new-btn px-3 py-1.5 text-gray-500 text-xs flex items-center gap-1.5" onclick="confirmNew()" id="newBtn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/>
+            <path d="M3 12h4M17 12h4M12 3v4M12 17v4"/>
+          </svg>
+          Новый
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <p class="text-white text-sm font-semibold">Входящие</p>
+      <span id="msgBadge" class="badge" style="display:none;">0</span>
+    </div>
+    <button class="flex items-center gap-1.5 text-gray-500 text-xs hover:text-gray-300 transition-colors" onclick="refreshMessages()" id="refreshBtn">
+      <svg id="refreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 2v6h-6"/>
+        <path d="M21 13a9 9 0 1 1-3-7.7L21 8"/>
+      </svg>
+      Обновить
+    </button>
+  </div>
+
+  <div id="msgList" class="flex flex-col gap-2 flex-1">
+    <div id="emptyState" class="flex flex-col items-center justify-center py-16 text-center">
+      <div class="empty-ghost mb-4">
+        <svg width="64" height="72" viewBox="0 0 40 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 2C10.059 2 2 10.059 2 20V42L8 36L14 42L20 36L26 42L32 36L38 42V20C38 10.059 29.941 2 20 2Z" fill="#fff"/>
+          <circle cx="14" cy="19" r="3" fill="#000"/>
+          <circle cx="26" cy="19" r="3" fill="#000"/>
+        </svg>
+      </div>
+      <p class="text-gray-600 text-sm">Писем пока нет</p>
+      <p class="text-gray-700 text-xs mt-1">Используйте адрес выше для регистрации</p>
+    </div>
+    <div id="loadingState" style="display:none;" class="flex flex-col gap-2">
+      <div class="shimmer h-16 rounded-xl"></div>
+      <div class="shimmer h-16 rounded-xl"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="confirmModal" class="modal-overlay" style="display:none;" onclick="closeConfirmModal(event)">
+  <div class="modal-box p-6 max-w-xs fade-in text-center">
+    <div class="ghost-float mb-4 flex justify-center">
+      <svg width="36" height="40" viewBox="0 0 40 44" fill="none">
+        <path d="M20 2C10.059 2 2 10.059 2 20V42L8 36L14 42L20 36L26 42L32 36L38 42V20C38 10.059 29.941 2 20 2Z" fill="#fff"/>
+        <circle cx="14" cy="19" r="3" fill="#000"/>
+        <circle cx="26" cy="19" r="3" fill="#000"/>
+      </svg>
+    </div>
+    <p class="text-white font-semibold mb-1">Создать новый ящик?</p>
+    <p class="text-gray-600 text-xs mb-5">Все письма будут удалены и ящик сбросится</p>
+    <div class="flex gap-2">
+      <button onclick="closeConfirmModal()" class="flex-1 py-2 rounded-lg border border-gray-800 text-gray-500 text-sm hover:border-gray-600 hover:text-gray-300 transition-all">Отмена</button>
+      <button onclick="createNewEmail()" class="flex-1 py-2 rounded-lg action-btn text-sm">Создать</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://api.mail.tm';
+const INBOX_DURATION = 15 * 60;
+const POLL_INTERVAL = 10000;
+
+let state = {
+  email: null,
+  password: null,
+  token: null,
+  domain: null,
+  createdAt: null,
+  messages: [],
+  seenIds: []
+};
+
+let domains = [];
+let selectedDomain = null;
+let pollTimer = null;
+let countdownTimer = null;
+let isRefreshing = false;
+
+const ADJECTIVES = ['dark','void','lost','cold','pale','grey','mist','dust','ash','echo',
+  'faint','grim','haze','iron','jade','keen','late','moon','numb','odd',
+  'pure','rare','soft','thin','wild','zero','blur','calm','dusk','ebon'];
+const NOUNS = ['wolf','rook','moth','crow','pike','sage','lark','mole','deer','fern',
+  'gale','hawk','iris','jade','kite','lynx','mare','newt','orca','puma',
+  'reed','ruse','seal','teal','ursa','vole','wren','yak','zeal','dune'];
+
+function randomName() {
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  const num = Math.floor(Math.random() * 900) + 100;
+  return `${adj}${noun}${num}`;
+}
+
+function saveState() {
+  localStorage.setItem('ghostmail_state', JSON.stringify(state));
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('ghostmail_state');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s.email && s.password && s.createdAt) {
+        state = s;
+        return true;
+      }
+    }
+  } catch(e) {}
+  return false;
+}
+
+function genPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+  return Array.from({length: 20}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function showToast(msg = 'Скопировано!') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function setStatus(online) {
+  const dot = document.querySelector('#statusDot span.rounded-full');
+  const txt = document.getElementById('statusText');
+  if (online) {
+    dot.className = 'blink w-2 h-2 rounded-full bg-white block';
+    txt.textContent = 'Активен';
+    txt.className = 'text-gray-400 text-xs';
+  } else {
+    dot.className = 'blink w-2 h-2 rounded-full bg-gray-600 block';
+    txt.textContent = 'Офлайн';
+    txt.className = 'text-gray-600 text-xs';
+  }
+}
+
+async function apiFetch(method, path, body = null, token = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' }
+  };
+  if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(`${API}${path}`, opts);
+    if (r.status === 204) return {};
+    const data = await r.json();
+    return { ok: r.ok, status: r.status, data };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+function getRemainingSeconds() {
+  if (!state.createdAt) return INBOX_DURATION;
+  const elapsed = Math.floor((Date.now() - state.createdAt) / 1000);
+  return Math.max(0, INBOX_DURATION - elapsed);
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function updateTimerUI(remaining) {
+  const label = document.getElementById('timerLabel');
+  const text = document.getElementById('timerText');
+  const ring = document.getElementById('ringProgress');
+  if (!label || !text || !ring) return;
+
+  const t = formatTime(remaining);
+  label.textContent = t;
+  text.textContent = t;
+
+  const circumference = 2 * Math.PI * 20;
+  const fraction = remaining / INBOX_DURATION;
+  const offset = circumference * (1 - fraction);
+  ring.style.strokeDashoffset = offset;
+
+  if (remaining < 60) {
+    ring.style.stroke = '#666';
+  } else if (remaining < 180) {
+    ring.style.stroke = '#aaa';
+  } else {
+    ring.style.stroke = '#fff';
+  }
+}
+
+function startCountdown() {
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(async () => {
+    const remaining = getRemainingSeconds();
+    updateTimerUI(remaining);
+    if (remaining <= 0) {
+      clearInterval(countdownTimer);
+      clearInterval(pollTimer);
+      showToast('Время вышло! Создаём новый ящик...');
+      await createNewEmail(true);
+    }
+  }, 1000);
+  updateTimerUI(getRemainingSeconds());
+}
+
+async function fetchDomains() {
+  const res = await apiFetch('GET', '/domains');
+  if (res.ok && res.data && res.data['hydra:member']) {
+    domains = res.data['hydra:member'].map(d => d.domain);
+    renderDomains();
+    return true;
+  }
+  return false;
+}
+
+function renderDomains() {
+  const list = document.getElementById('domainList');
+  list.innerHTML = '';
+  domains.forEach(d => {
+    const chip = document.createElement('button');
+    chip.className = `domain-chip px-3 py-1.5 text-xs mono ${d === selectedDomain ? 'active text-white' : 'text-gray-500'}`;
+    chip.textContent = d;
+    chip.dataset.domain = d;
+    chip.onclick = () => selectDomain(d);
+    list.appendChild(chip);
+  });
+}
+
+function selectDomain(d) {
+  selectedDomain = d;
+  renderDomains();
+}
+
+async function createEmail(domain, name) {
+  const password = genPassword();
+  const address = `${name}@${domain}`;
+
+  const r = await apiFetch('POST', '/accounts', { address, password });
+  if (!r.ok) {
+    if (r.status === 422 || r.status === 409) {
+      const newName = randomName();
+      return createEmail(domain, newName);
+    }
+    return null;
+  }
+
+  const t = await apiFetch('POST', '/token', { address, password });
+  if (!t.ok || !t.data || !t.data.token) return null;
+
+  return { email: address, password, token: t.data.token };
+}
+
+async function initEmail() {
+  setEmailLoading(true);
+
+  const loaded = loadState();
+
+  if (loaded && getRemainingSeconds() > 0) {
+    const t = await apiFetch('POST', '/token', { address: state.email, password: state.password });
+    if (t.ok && t.data && t.data.token) {
+      state.token = t.data.token;
+      saveState();
+      setEmailLoading(false);
+      renderEmailUI();
+      setStatus(true);
+      startCountdown();
+      await refreshMessages();
+      startPolling();
+      return;
+    }
+  }
+
+  const domOk = await fetchDomains();
+  if (!domOk || domains.length === 0) {
+    setStatus(false);
+    document.getElementById('emailDisplay').textContent = 'Ошибка подключения';
+    return;
+  }
+
+  selectedDomain = domains[0];
+  renderDomains();
+
+  await createNewEmail(true);
+}
+
+async function createNewEmail(silent = false) {
+  closeConfirmModal();
+  clearInterval(pollTimer);
+  clearInterval(countdownTimer);
+  setEmailLoading(true);
+
+  if (!silent) {
+    document.getElementById('msgList').querySelectorAll('.msg-item').forEach(e => e.remove());
+    document.getElementById('emptyState').style.display = 'flex';
+  }
+
+  if (domains.length === 0) {
+    await fetchDomains();
+  }
+
+  const domain = selectedDomain || domains[0];
+  const name = randomName();
+
+  const result = await createEmail(domain, name);
+  if (!result) {
+    setStatus(false);
+    showToast('Ошибка создания ящика');
+    setEmailLoading(false);
+    return;
+  }
+
+  state.email = result.email;
+  state.password = result.password;
+  state.token = result.token;
+  state.domain = domain;
+  state.createdAt = Date.now();
+  state.messages = [];
+  state.seenIds = [];
+  saveState();
+
+  setEmailLoading(false);
+  renderEmailUI();
+  setStatus(true);
+  startCountdown();
+  await refreshMessages();
+  startPolling();
+
+  if (!silent) showToast('Новый ящик создан!');
+}
+
+function setEmailLoading(loading) {
+  const display = document.getElementById('emailDisplay');
+  const copyBtn = document.getElementById('copyBtn');
+  if (loading) {
+    display.innerHTML = '<span class="shimmer h-5 w-56 block rounded inline-block"></span>';
+    copyBtn.disabled = true;
+  }
+}
+
+function renderEmailUI() {
+  if (!state.email) return;
+  const display = document.getElementById('emailDisplay');
+  const copyBtn = document.getElementById('copyBtn');
+
+  const [localPart, domainPart] = state.email.split('@');
+  display.innerHTML = `<span class="text-gray-400">${localPart}</span><span class="text-gray-700">@</span><span class="text-white">${domainPart}</span>`;
+  copyBtn.disabled = false;
+
+  if (state.domain) {
+    selectedDomain = state.domain;
+    renderDomains();
+  }
+}
+
+function copyEmail() {
+  if (!state.email) return;
+  navigator.clipboard.writeText(state.email).then(() => {
+    showToast('Email скопирован!');
+    const btn = document.getElementById('copyBtn');
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Скопировано`;
+    setTimeout(() => {
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Копировать`;
+    }, 2000);
+  });
+}
+
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(refreshMessages, POLL_INTERVAL);
+}
+
+async function refreshMessages() {
+  if (!state.token || !state.email) return;
+  if (isRefreshing) return;
+  isRefreshing = true;
+
+  const icon = document.getElementById('refreshIcon');
+  icon.classList.add('spinning');
+  setTimeout(() => icon.classList.remove('spinning'), 600);
+
+  const res = await apiFetch('GET', '/messages', null, state.token);
+
+  if (res.status === 401) {
+    const t = await apiFetch('POST', '/token', { address: state.email, password: state.password });
+    if (t.ok && t.data && t.data.token) {
+      state.token = t.data.token;
+      saveState();
+      isRefreshing = false;
+      return refreshMessages();
+    }
+    isRefreshing = false;
+    return;
+  }
+
+  if (res.ok && res.data && res.data['hydra:member']) {
+    const msgs = res.data['hydra:member'];
+    state.messages = msgs;
+    saveState();
+    renderMessages(msgs);
+    setStatus(true);
+  } else {
+    setStatus(false);
+  }
+
+  isRefreshing = false;
+}
+
+function renderMessages(msgs) {
+  const list = document.getElementById('msgList');
+  const emptyState = document.getElementById('emptyState');
+  const badge = document.getElementById('msgBadge');
+
+  list.querySelectorAll('.msg-item').forEach(e => e.remove());
+
+  if (!msgs || msgs.length === 0) {
+    emptyState.style.display = 'flex';
+    badge.style.display = 'none';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  badge.style.display = 'inline';
+  badge.textContent = msgs.length;
+
+  msgs.forEach(msg => {
+    const item = document.createElement('div');
+    item.className = `msg-item p-4 fade-in ${!msg.seen ? 'unread' : ''}`;
+    item.dataset.id = msg.id;
+
+    const date = formatMsgDate(msg.createdAt);
+    const from = msg.from ? (msg.from.name || msg.from.address || 'Неизвестно') : 'Неизвестно';
+    const subject = msg.subject || '(без темы)';
+
+    item.innerHTML = `
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            ${!msg.seen ? '<span class="w-1.5 h-1.5 rounded-full bg-white flex-shrink-0 block"></span>' : ''}
+            <p class="text-white text-xs font-medium truncate">${escHtml(from)}</p>
+          </div>
+          <p class="text-gray-300 text-sm font-medium truncate">${escHtml(subject)}</p>
+        </div>
+        <p class="text-gray-700 text-xs flex-shrink-0 mono">${date}</p>
+      </div>
+    `;
+
+    item.onclick = () => openMessage(msg.id);
+    list.insertBefore(item, list.querySelector('#emptyState'));
+  });
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function formatMsgDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = now - d;
+    if (diff < 60000) return 'только что';
+    if (diff < 3600000) return `${Math.floor(diff/60000)} мин`;
+    if (diff < 86400000) {
+      return d.toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
+    }
+    return d.toLocaleDateString('ru', {day:'2-digit', month:'2-digit'});
+  } catch(e) { return ''; }
+}
+
+async function openMessage(id) {
+  if (!state.token) return;
+
+  if (!state.seenIds.includes(id)) {
+    state.seenIds.push(id);
+    saveState();
+  }
+
+  const res = await apiFetch('GET', `/messages/${id}`, null, state.token);
+  if (!res.ok || !res.data) return;
+
+  const msg = res.data;
+  const fromName = msg.from ? (msg.from.name || msg.from.address || 'Неизвестно') : 'Неизвестно';
+  const fromAddr = msg.from ? (msg.from.address || '') : '';
+  const fromFull = msg.from ? (msg.from.name ? `${msg.from.name} <${msg.from.address}>` : msg.from.address) : 'Неизвестно';
+  const date = msg.createdAt ? new Date(msg.createdAt).toLocaleString('ru', {
+    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  }) : '';
+
+  document.getElementById('modalAvatar').textContent = fromName.charAt(0).toUpperCase();
+  document.getElementById('modalFromName').textContent = fromName;
+  document.getElementById('modalFromAddr').textContent = fromAddr;
+  document.getElementById('modalSubject').textContent = msg.subject || '(без темы)';
+  document.getElementById('modalFromFull').textContent = fromFull;
+  document.getElementById('modalTo').textContent = state.email || '';
+  document.getElementById('modalDate').textContent = date;
+
+  const bodyEl = document.getElementById('modalBody');
+  if (msg.html && msg.html.length > 0) {
+    const sanitized = msg.html.join ? msg.html.join('') : msg.html;
+    bodyEl.innerHTML = `<div style="background:#111; border-radius:10px; padding:14px; overflow:auto; border:1px solid #1a1a1a;">${stripScripts(sanitized)}</div>`;
+  } else if (msg.text) {
+    const lines = (msg.text || '').split('\n');
+    bodyEl.innerHTML = lines.map(l => `<p class="mb-1">${escHtml(l) || '&nbsp;'}</p>`).join('');
+  } else {
+    bodyEl.innerHTML = '<p class="text-gray-600">Письмо пустое</p>';
+  }
+
+  document.getElementById('msgModal').style.display = 'flex';
+
+  const item = document.querySelector(`.msg-item[data-id="${id}"]`);
+  if (item) {
+    item.classList.remove('unread');
+    const dot = item.querySelector('.w-1\\.5');
+    if (dot) dot.remove();
+  }
+
+  try {
+    fetch(`${API}/messages/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/merge-patch+json',
+        'Authorization': `Bearer ${state.token}`
+      },
+      body: JSON.stringify({ seen: true })
+    });
+  } catch(e) {}
+}
+
+function stripScripts(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/on\w+="[^"]*"/gi, '')
+    .replace(/on\w+='[^']*'/gi, '');
+}
+
+function closeMsgModal(event) {
+  if (event && event.target !== document.getElementById('msgModal')) return;
+  document.getElementById('msgModal').style.display = 'none';
+}
+
+function confirmNew() {
+  document.getElementById('confirmModal').style.display = 'flex';
+}
+
+function closeConfirmModal(event) {
+  if (event && event.target !== document.getElementById('confirmModal')) return;
+  document.getElementById('confirmModal').style.display = 'none';
+}
+
+function selectDomain(d) {
+  selectedDomain = d;
+  renderDomains();
+  if (state.email && state.domain && d !== state.domain) {
+    showToast('Нажмите «Новый» чтобы сменить сервер');
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initEmail();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.email) {
+    refreshMessages();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('msgModal').style.display = 'none';
+    document.getElementById('confirmModal').style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
